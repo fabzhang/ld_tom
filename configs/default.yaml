@@ -1,0 +1,53 @@
+# =====================================================================
+# Liar's Dice ToM — Default Configuration
+# =====================================================================
+
+env:
+  n_players: 2          # Start with 2-player; scale to 4 for ToM experiments
+  n_dice: 5             # Standard Perudo: 5 dice per player
+  history_len: 20       # Bid history buffer length
+  calza_enabled: false  # Enable for Phase 4 / Experiment 4
+  max_rounds: 500       # Truncation safety net
+
+training:
+  total_timesteps: 5_000_000
+  n_envs: 8             # Parallel environments per training run
+  eval_freq: 50_000     # Evaluate every N steps
+  snapshot_freq: 100_000  # Save opponent pool snapshot every N steps
+  entropy_coef: 0.05    # Start high; decay schedule in training script
+  learning_rate: 3.0e-4
+  batch_size: 2048
+  n_epochs: 10
+  clip_range: 0.2
+  gamma: 0.99
+  gae_lambda: 0.95
+
+self_play:
+  pool_size: 20          # Max snapshots in opponent pool
+  snapshot_opponent_fraction: 0.35
+  main_agent_fraction: 0.35
+  exploiter_fraction: 0.30
+
+he2016:
+  lstm_hidden: 128
+  n_experts: 3           # K in DRON-MoE
+  aux_loss_lambda: 0.1   # λ for opponent prediction loss
+  history_window: 10     # Opponent action history fed to LSTM encoder
+
+tomnet:
+  char_lstm_hidden: 128
+  mental_lstm_hidden: 128
+  pred_hidden: 256
+  e_char_dim: 64
+  e_mental_dim: 64
+  n_past_games: 5        # Games fed to character net
+  aux_loss_lambda: 0.1
+
+logging:
+  wandb_project: "liars_dice_tom"
+  log_interval: 1000     # Steps between metric logs
+
+experiment:
+  n_tournament_games: 1000  # Games per pair in tournament (RQ1)
+  n_adaptation_games: 2000  # Games for adaptation experiments (RQ4)
+  seed: 42
