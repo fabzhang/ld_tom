@@ -150,7 +150,7 @@ class SelfPlayEnv(gym.Env):
             mask = np.zeros(self.action_space.n, dtype=bool)
             mask[0] = True
             return mask
-        return self._env.observe(self._focal)["action_mask"].astype(bool)
+        return self._env.action_mask(self._focal).astype(bool)
 
 
 def train_ppo_selfplay(
