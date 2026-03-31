@@ -11,7 +11,8 @@ class RandomAgent:
     def __init__(self, name: str = "random"):
         self.name = name
 
-    def act(self, obs: np.ndarray, action_mask: np.ndarray) -> int:
+    def act(self, obs: np.ndarray, action_mask: np.ndarray,
+            env_state: dict | None = None) -> int:
         legal = np.where(action_mask)[0]
         return int(np.random.choice(legal))
 

@@ -24,8 +24,8 @@ class BayesianAgent:
         self.name = name
         self.t_challenge = t_challenge
         self.n_particles = n_particles
-        self._posterior: np.ndarray | None = None  # For exact inference
-        self._particles: np.ndarray | None = None  # For particle filter
+        self._posterior: np.ndarray | None = None
+        self._particles: np.ndarray | None = None
         self._n_opp_dice: int = 0
 
     def reset(self):
@@ -36,7 +36,6 @@ class BayesianAgent:
     def _init_posterior(self, n_opp_dice: int):
         self._n_opp_dice = n_opp_dice
         if n_opp_dice <= _MAX_EXACT:
-            # Uniform prior over all 6^n configurations
             configs = list(product(range(1, 7), repeat=n_opp_dice))
             self._configs = np.array(configs, dtype=np.int8)
             self._posterior = np.ones(len(configs), dtype=np.float64)
@@ -44,28 +43,24 @@ class BayesianAgent:
         else:
             self._particles = np.random.randint(1, 7, size=(self.n_particles, n_opp_dice))
 
-    def update(self, bid: tuple[int, int], bidder_rational: bool = True):
+    def update(self, bid: tuple[int, int]):
         """Update posterior after observing opponent bid (q, f)."""
         if self._posterior is None and self._particles is None:
             return
         q, f = bid
         if self._posterior is not None:
-            # Likelihood: P(bid (q,f) | config) proportional to count_f(config) >= q
             counts = np.sum(self._configs == f, axis=1)
-            # Soft likelihood: higher count → more likely to make this bid
             likelihood = (counts >= max(0, q - 2)).astype(np.float64) * 0.7 + 0.3
             self._posterior *= likelihood
             s = self._posterior.sum()
             if s > 0:
                 self._posterior /= s
         else:
-            # Particle filter: resample based on likelihood
             counts = np.sum(self._particles == f, axis=1)
             weights = (counts >= max(0, q - 2)).astype(np.float64) * 0.7 + 0.3
             weights /= weights.sum()
             idxs = np.random.choice(self.n_particles, size=self.n_particles, p=weights)
             self._particles = self._particles[idxs]
-            # Add jitter
             jitter_mask = np.random.random(self.n_particles) < 0.05
             self._particles[jitter_mask] = np.random.randint(
                 1, 7, size=(jitter_mask.sum(), self._n_opp_dice)
@@ -81,7 +76,6 @@ class BayesianAgent:
             opp_counts = np.sum(self._particles == f, axis=1)
             return float(np.mean(opp_counts + own_count >= q))
         else:
-            # No posterior yet: use binomial approximation
             n_opp = self._n_opp_dice or 5
             opp_needed = max(0, q - own_count)
             return 1.0 - binom.cdf(opp_needed - 1, n_opp, 1.0 / 6)
@@ -90,16 +84,32 @@ class BayesianAgent:
         self,
         obs: np.ndarray,
         action_mask: np.ndarray,
-        own_dice: np.ndarray | None = None,
-        current_bid: tuple[int, int] | None = None,
-        n_opp_dice: int = 5,
+        env_state: dict | None = None,
     ) -> int:
+        """
+        Args:
+            obs: Full observation vector (not used directly).
+            action_mask: Boolean mask of legal actions.
+            env_state: Optional dict with keys:
+                own_dice (np.ndarray), current_bid (tuple|None), n_opp_dice (int).
+        """
+        if env_state is None or env_state.get("current_bid") is None:
+            legal = np.where(action_mask)[0]
+            return int(np.random.choice(legal))
+
+        own_dice = env_state.get("own_dice")
+        current_bid = env_state["current_bid"]
+        n_opp_dice = env_state.get("n_opp_dice", 5)
+
+        if own_dice is None:
+            legal = np.where(action_mask)[0]
+            return int(np.random.choice(legal))
+
         if self._posterior is None and self._particles is None:
             self._init_posterior(n_opp_dice)
 
-        if own_dice is None or current_bid is None:
-            legal = np.where(action_mask)[0]
-            return int(np.random.choice(legal))
+        # Update posterior with the observed bid
+        self.update(current_bid)
 
         q, f = current_bid
         own_count = int(np.sum(own_dice == f))
@@ -108,7 +118,7 @@ class BayesianAgent:
         if p_true < self.t_challenge and action_mask[0]:
             return 0  # Challenge
 
-        # Pick the first legal bid (lowest safe raise)
+        # Pick the first (lowest) legal bid
         for idx, valid in enumerate(action_mask):
             if valid and idx != 0:
                 return idx
