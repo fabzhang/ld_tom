@@ -60,6 +60,7 @@ class SelfPlayEnv(gym.Env):
         self._focal = focal_agent_name
         self._env = None
         self._opp_agent = None
+        self._model_cache: dict[str, object] = {}  # path → loaded MaskablePPO model
         self._make_env()
 
         obs_size = self._env.observation_spaces[self._focal].shape[0]
@@ -83,7 +84,13 @@ class SelfPlayEnv(gym.Env):
             self._opp_agent = RandomAgent()
         else:
             from agents.ppo_agent import PPOAgent
-            self._opp_agent = PPOAgent(model_path=path, deterministic=False)
+            from sb3_contrib import MaskablePPO
+            # Cache loaded models to avoid re-reading from disk every episode
+            if path not in self._model_cache:
+                self._model_cache[path] = MaskablePPO.load(path)
+            agent = PPOAgent(name="opp")
+            agent.model = self._model_cache[path]
+            self._opp_agent = agent
 
     def reset(self, seed=None, options=None):
         self._load_opponent()
@@ -209,21 +216,43 @@ def train_ppo_selfplay(
     )
     callbacks.append(snapshot_callback)
 
-    model = MaskablePPO(
-        policy="MlpPolicy",
-        env=masked_env,
-        learning_rate=3e-4,
-        n_steps=2048,
-        batch_size=2048,
-        n_epochs=10,
-        gamma=0.99,
-        ent_coef=0.05,
-        verbose=1,
-        device=device,
-        policy_kwargs={"net_arch": [256, 256]},
-    )
+    # Resume from latest checkpoint if one exists
+    resume_path = os.path.join(output_dir, "latest_checkpoint.zip")
+    steps_done = 0
+    if os.path.exists(resume_path):
+        print(f"[train_ppo_selfplay] Resuming from {resume_path}")
+        model = MaskablePPO.load(resume_path, env=masked_env, device=device)
+        # Also seed the pool with all snapshots already saved
+        import glob
+        for snap in sorted(glob.glob(os.path.join(output_dir, "snapshot_*.zip"))):
+            pool.add(snap)
+            train_env._model_cache[snap] = MaskablePPO.load(snap)
+        # Read steps_done from a sidecar file
+        steps_file = os.path.join(output_dir, "steps_done.txt")
+        if os.path.exists(steps_file):
+            with open(steps_file) as f:
+                steps_done = int(f.read().strip())
+        print(f"[train_ppo_selfplay] Pool has {len(pool)} snapshots, resuming at step {steps_done}")
+    else:
+        model = MaskablePPO(
+            policy="MlpPolicy",
+            env=masked_env,
+            learning_rate=3e-4,
+            n_steps=2048,
+            batch_size=2048,
+            n_epochs=10,
+            gamma=0.99,
+            ent_coef=0.05,
+            verbose=1,
+            device=device,
+            policy_kwargs={"net_arch": [256, 256]},
+        )
 
-    model.learn(total_timesteps=total_timesteps, callback=callbacks)
+    remaining_steps = max(0, total_timesteps - steps_done)
+    print(f"[train_ppo_selfplay] Training for {remaining_steps} more steps "
+          f"({steps_done}/{total_timesteps} done)")
+    if remaining_steps > 0:
+        model.learn(total_timesteps=remaining_steps, callback=callbacks, reset_num_timesteps=False)
 
     final_path = os.path.join(output_dir, "final_model")
     model.save(final_path)
@@ -295,6 +324,10 @@ try:
                 self.model.save(path)
                 self.pool.add(path + ".zip")
                 self._last_snapshot = t
+                # Overwrite latest_checkpoint so resume picks up here
+                self.model.save(os.path.join(self.output_dir, "latest_checkpoint"))
+                with open(os.path.join(self.output_dir, "steps_done.txt"), "w") as f:
+                    f.write(str(t))
                 if self.verbose:
                     print(f"[snapshot] step={t} pool={len(self.pool)}")
             return True
