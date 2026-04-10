@@ -43,6 +43,7 @@ def _build_env_state(env, agent: str) -> dict:
         ),
         "die_counts": dict(env._die_counts),
         "agent_name": agent,
+        "opp_action_history": [e for e in env._history if e["agent"] != agent],
     }
 
 
@@ -82,6 +83,15 @@ def load_agents(agent_configs: dict) -> dict:
                 name=name,
                 deterministic=cfg.get("deterministic", False),
             )
+        elif atype == "he2016":
+            from agents.tom.he2016_agent import He2016Agent
+            agent = He2016Agent.load(
+                directory=cfg["inference_dir"],
+                expert_dirs=cfg["expert_dirs"],
+                deterministic=cfg.get("deterministic", False),
+            )
+            agent.name = name
+            agents[name] = agent
         else:
             raise ValueError(f"Unknown agent type: {atype!r}")
     return agents
@@ -351,8 +361,16 @@ DEFAULT_AGENTS_6 = {
     "random":    {"type": "random"},
     "heuristic": {"type": "heuristic", "t_challenge": 0.25, "p_bluff": 0.15},
     "bayesian":  {"type": "bayesian", "t_challenge": 0.20},
-    # ppo, he2016, tomnet added here when available:
-    # "ppo":       {"type": "ppo", "path": "checkpoints/ppo_stage2/final_model.zip"},
+    # Add trained agents here as they become available:
+    # "ppo":    {"type": "ppo", "path": "checkpoints/ppo_stage2/final_model.zip"},
+    # "he2016": {"type": "he2016",
+    #             "inference_dir": "checkpoints/he2016",
+    #             "expert_dirs": {
+    #                 "random":    "checkpoints/he2016_experts/expert_random.zip",
+    #                 "heuristic": "checkpoints/he2016_experts/expert_heuristic.zip",
+    #                 "bayesian":  "checkpoints/he2016_experts/expert_bayesian.zip",
+    #                 "ppo":       "checkpoints/he2016_experts/expert_ppo.zip",
+    #             }},
 }
 
 
