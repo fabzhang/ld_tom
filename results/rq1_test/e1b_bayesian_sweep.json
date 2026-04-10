@@ -1,0 +1,95 @@
+{
+  "focal": "bayesian",
+  "results": [
+    {
+      "mix": {
+        "random": 1.0,
+        "heuristic": 0.0
+      },
+      "focal_win_rate": 0.88,
+      "focal_wins": 44,
+      "total_games": 50
+    },
+    {
+      "mix": {
+        "random": 0.0,
+        "heuristic": 1.0
+      },
+      "focal_win_rate": 0.22,
+      "focal_wins": 11,
+      "total_games": 50
+    },
+    {
+      "mix": {
+        "random": 0.5,
+        "heuristic": 0.5
+      },
+      "focal_win_rate": 0.44,
+      "focal_wins": 22,
+      "total_games": 50
+    },
+    {
+      "mix": {
+        "random": 0.5071743917297519,
+        "heuristic": 0.4928256082702482
+      },
+      "focal_win_rate": 0.58,
+      "focal_wins": 29,
+      "total_games": 50
+    },
+    {
+      "mix": {
+        "random": 0.8949940010888753,
+        "heuristic": 0.10500599891112483
+      },
+      "focal_win_rate": 0.8,
+      "focal_wins": 40,
+      "total_games": 50
+    },
+    {
+      "mix": {
+        "random": 0.05616107905367301,
+        "heuristic": 0.943838920946327
+      },
+      "focal_win_rate": 0.32,
+      "focal_wins": 16,
+      "total_games": 50
+    },
+    {
+      "mix": {
+        "random": 0.310957407760897,
+        "heuristic": 0.6890425922391029
+      },
+      "focal_win_rate": 0.36,
+      "focal_wins": 18,
+      "total_games": 50
+    },
+    {
+      "mix": {
+        "random": 0.07043020113942798,
+        "heuristic": 0.929569798860572
+      },
+      "focal_win_rate": 0.26,
+      "focal_wins": 13,
+      "total_games": 50
+    },
+    {
+      "mix": {
+        "random": 0.060749237366822584,
+        "heuristic": 0.9392507626331774
+      },
+      "focal_win_rate": 0.22,
+      "focal_wins": 11,
+      "total_games": 50
+    },
+    {
+      "mix": {
+        "random": 0.8173492711461748,
+        "heuristic": 0.18265072885382508
+      },
+      "focal_win_rate": 0.72,
+      "focal_wins": 36,
+      "total_games": 50
+    }
+  ]
+}

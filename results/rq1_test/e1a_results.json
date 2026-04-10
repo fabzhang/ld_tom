@@ -1,0 +1,26 @@
+{
+  "random|heuristic": [
+    2,
+    48
+  ],
+  "random|bayesian": [
+    0,
+    50
+  ],
+  "heuristic|random": [
+    43,
+    7
+  ],
+  "heuristic|bayesian": [
+    9,
+    41
+  ],
+  "bayesian|random": [
+    42,
+    8
+  ],
+  "bayesian|heuristic": [
+    11,
+    39
+  ]
+}
