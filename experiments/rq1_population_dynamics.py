@@ -395,6 +395,18 @@ if __name__ == "__main__":
     if args.ppo_path and os.path.exists(args.ppo_path):
         agent_configs["ppo"] = {"type": "ppo", "path": args.ppo_path}
 
+    if args.he2016_dir and os.path.exists(os.path.join(args.he2016_dir, "config.json")):
+        agent_configs["he2016"] = {
+            "type": "he2016",
+            "inference_dir": args.he2016_dir,
+            "expert_dirs": {
+                "random":    os.path.join(args.experts_dir, "expert_random.zip"),
+                "heuristic": os.path.join(args.experts_dir, "expert_heuristic.zip"),
+                "bayesian":  os.path.join(args.experts_dir, "expert_bayesian.zip"),
+                "ppo":       os.path.join(args.experts_dir, "expert_ppo.zip"),
+            },
+        }
+
     agents = load_agents(agent_configs)
     print(f"Loaded agents: {list(agents.keys())}")
 
