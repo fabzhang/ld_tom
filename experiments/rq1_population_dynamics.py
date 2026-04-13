@@ -386,6 +386,10 @@ if __name__ == "__main__":
     parser.add_argument("--results_dir", default="results/rq1")
     parser.add_argument("--ppo_path", default=None,
                         help="Path to trained PPO model zip (optional)")
+    parser.add_argument("--he2016_dir", default=None,
+                        help="Dir with inference_net.pt + config.json")
+    parser.add_argument("--experts_dir", default="checkpoints/he2016_experts",
+                        help="Dir with expert_*.zip files")
     args = parser.parse_args()
 
     env_config = {"n_players": 2, "n_dice": args.env_n_dice}

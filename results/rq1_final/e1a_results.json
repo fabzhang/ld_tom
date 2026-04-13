@@ -1,0 +1,82 @@
+{
+  "random|heuristic": [
+    34,
+    966
+  ],
+  "random|bayesian": [
+    0,
+    1000
+  ],
+  "random|ppo": [
+    10,
+    990
+  ],
+  "random|he2016": [
+    11,
+    989
+  ],
+  "heuristic|random": [
+    942,
+    58
+  ],
+  "heuristic|bayesian": [
+    149,
+    851
+  ],
+  "heuristic|ppo": [
+    284,
+    716
+  ],
+  "heuristic|he2016": [
+    341,
+    659
+  ],
+  "bayesian|random": [
+    942,
+    58
+  ],
+  "bayesian|heuristic": [
+    139,
+    861
+  ],
+  "bayesian|ppo": [
+    282,
+    718
+  ],
+  "bayesian|he2016": [
+    289,
+    711
+  ],
+  "ppo|random": [
+    993,
+    7
+  ],
+  "ppo|heuristic": [
+    717,
+    283
+  ],
+  "ppo|bayesian": [
+    695,
+    305
+  ],
+  "ppo|he2016": [
+    753,
+    247
+  ],
+  "he2016|random": [
+    990,
+    10
+  ],
+  "he2016|heuristic": [
+    802,
+    198
+  ],
+  "he2016|bayesian": [
+    873,
+    127
+  ],
+  "he2016|ppo": [
+    484,
+    516
+  ]
+}
