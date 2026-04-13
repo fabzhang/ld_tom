@@ -1,0 +1,115 @@
+{
+  "focal": "ppo",
+  "results": [
+    {
+      "mix": {
+        "random": 1.0,
+        "heuristic": 0.0,
+        "bayesian": 0.0,
+        "he2016": 0.0
+      },
+      "focal_win_rate": 0.992,
+      "focal_wins": 496,
+      "total_games": 500
+    },
+    {
+      "mix": {
+        "random": 0.0,
+        "heuristic": 1.0,
+        "bayesian": 0.0,
+        "he2016": 0.0
+      },
+      "focal_win_rate": 0.722,
+      "focal_wins": 361,
+      "total_games": 500
+    },
+    {
+      "mix": {
+        "random": 0.0,
+        "heuristic": 0.0,
+        "bayesian": 1.0,
+        "he2016": 0.0
+      },
+      "focal_win_rate": 0.694,
+      "focal_wins": 347,
+      "total_games": 500
+    },
+    {
+      "mix": {
+        "random": 0.0,
+        "heuristic": 0.0,
+        "bayesian": 0.0,
+        "he2016": 1.0
+      },
+      "focal_win_rate": 0.72,
+      "focal_wins": 360,
+      "total_games": 500
+    },
+    {
+      "mix": {
+        "random": 0.25,
+        "heuristic": 0.25,
+        "bayesian": 0.25,
+        "he2016": 0.25
+      },
+      "focal_win_rate": 0.76,
+      "focal_wins": 380,
+      "total_games": 500
+    },
+    {
+      "mix": {
+        "random": 0.3246757171249298,
+        "heuristic": 0.3154901162043157,
+        "bayesian": 0.3220494205571397,
+        "he2016": 0.037784746113614744
+      },
+      "focal_win_rate": 0.808,
+      "focal_wins": 404,
+      "total_games": 500
+    },
+    {
+      "mix": {
+        "random": 0.014232233398534218,
+        "heuristic": 0.2391858568224978,
+        "bayesian": 0.23215517534604774,
+        "he2016": 0.5144267344329202
+      },
+      "focal_win_rate": 0.73,
+      "focal_wins": 365,
+      "total_games": 500
+    },
+    {
+      "mix": {
+        "random": 0.034697272773258694,
+        "heuristic": 0.45795037286628487,
+        "bayesian": 0.03082126860365966,
+        "he2016": 0.47653108575679687
+      },
+      "focal_win_rate": 0.722,
+      "focal_wins": 361,
+      "total_games": 500
+    },
+    {
+      "mix": {
+        "random": 0.49415934909221304,
+        "heuristic": 0.11042839146972537,
+        "bayesian": 0.351521951292702,
+        "he2016": 0.04389030814535946
+      },
+      "focal_win_rate": 0.874,
+      "focal_wins": 437,
+      "total_games": 500
+    },
+    {
+      "mix": {
+        "random": 0.053213482286030615,
+        "heuristic": 0.183143517682574,
+        "bayesian": 0.5236665500376122,
+        "he2016": 0.23997644999378326
+      },
+      "focal_win_rate": 0.706,
+      "focal_wins": 353,
+      "total_games": 500
+    }
+  ]
+}

@@ -55,7 +55,7 @@ def plot_win_rate_heatmap(matrix: np.ndarray, agent_names: list,
     """
     names = _ordered_names(agent_names)
     idx = [agent_names.index(n) for n in names]
-    m = matrix[np.ix_(idx, idx)]
+    m = matrix.values[np.ix_(idx, idx)]
     labels = [AGENT_LABELS.get(n, n) for n in names]
 
     fig, ax = plt.subplots(figsize=(8, 6))
@@ -152,7 +152,7 @@ def plot_dominance_graph(win_rate_matrix: np.ndarray, agent_names: list,
         for j, b in enumerate(names):
             if i == j:
                 continue
-            wr = win_rate_matrix[idx_map[a], idx_map[b]]
+            wr = win_rate_matrix.values[idx_map[a], idx_map[b]]
             if wr > threshold:
                 G.add_edge(a, b, weight=wr)
 
