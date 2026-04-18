@@ -1,0 +1,532 @@
+{
+  "random": {
+    "non_ch_fraction": 0.40684444444444445,
+    "mean_min_kl": 1.1950435335779757,
+    "top_non_ch_states": [
+      {
+        "p_valid": null,
+        "action": 34,
+        "is_challenge": false,
+        "current_bid": null,
+        "n_opp_dice": 5,
+        "player_position": 0,
+        "min_kl_to_ch": 4.094343962222281,
+        "game_id": 0
+      },
+      {
+        "p_valid": null,
+        "action": 44,
+        "is_challenge": false,
+        "current_bid": null,
+        "n_opp_dice": 5,
+        "player_position": 0,
+        "min_kl_to_ch": 4.094343962222281,
+        "game_id": 2290
+      },
+      {
+        "p_valid": null,
+        "action": 18,
+        "is_challenge": false,
+        "current_bid": null,
+        "n_opp_dice": 5,
+        "player_position": 0,
+        "min_kl_to_ch": 4.094343962222281,
+        "game_id": 778
+      },
+      {
+        "p_valid": null,
+        "action": 32,
+        "is_challenge": false,
+        "current_bid": null,
+        "n_opp_dice": 5,
+        "player_position": 0,
+        "min_kl_to_ch": 4.094343962222281,
+        "game_id": 4504
+      },
+      {
+        "p_valid": null,
+        "action": 47,
+        "is_challenge": false,
+        "current_bid": null,
+        "n_opp_dice": 5,
+        "player_position": 0,
+        "min_kl_to_ch": 4.094343962222281,
+        "game_id": 1338
+      },
+      {
+        "p_valid": null,
+        "action": 6,
+        "is_challenge": false,
+        "current_bid": null,
+        "n_opp_dice": 5,
+        "player_position": 0,
+        "min_kl_to_ch": 4.094343962222281,
+        "game_id": 3658
+      },
+      {
+        "p_valid": null,
+        "action": 4,
+        "is_challenge": false,
+        "current_bid": null,
+        "n_opp_dice": 5,
+        "player_position": 0,
+        "min_kl_to_ch": 4.094343962222281,
+        "game_id": 292
+      },
+      {
+        "p_valid": null,
+        "action": 3,
+        "is_challenge": false,
+        "current_bid": null,
+        "n_opp_dice": 5,
+        "player_position": 0,
+        "min_kl_to_ch": 4.094343962222281,
+        "game_id": 3660
+      },
+      {
+        "p_valid": null,
+        "action": 1,
+        "is_challenge": false,
+        "current_bid": null,
+        "n_opp_dice": 5,
+        "player_position": 0,
+        "min_kl_to_ch": 4.094343962222281,
+        "game_id": 4502
+      },
+      {
+        "p_valid": null,
+        "action": 58,
+        "is_challenge": false,
+        "current_bid": null,
+        "n_opp_dice": 5,
+        "player_position": 0,
+        "min_kl_to_ch": 4.094343962222281,
+        "game_id": 1738
+      }
+    ]
+  },
+  "heuristic": {
+    "non_ch_fraction": 0.15728014880644828,
+    "mean_min_kl": 0.5824720847797333,
+    "top_non_ch_states": [
+      {
+        "p_valid": null,
+        "action": 10,
+        "is_challenge": false,
+        "current_bid": null,
+        "n_opp_dice": 5,
+        "player_position": 0,
+        "min_kl_to_ch": 4.094343962222281,
+        "game_id": 0
+      },
+      {
+        "p_valid": null,
+        "action": 7,
+        "is_challenge": false,
+        "current_bid": null,
+        "n_opp_dice": 5,
+        "player_position": 0,
+        "min_kl_to_ch": 4.094343962222281,
+        "game_id": 878
+      },
+      {
+        "p_valid": null,
+        "action": 52,
+        "is_challenge": false,
+        "current_bid": null,
+        "n_opp_dice": 5,
+        "player_position": 0,
+        "min_kl_to_ch": 4.094343962222281,
+        "game_id": 4522
+      },
+      {
+        "p_valid": null,
+        "action": 24,
+        "is_challenge": false,
+        "current_bid": null,
+        "n_opp_dice": 5,
+        "player_position": 0,
+        "min_kl_to_ch": 4.094343962222281,
+        "game_id": 3950
+      },
+      {
+        "p_valid": null,
+        "action": 16,
+        "is_challenge": false,
+        "current_bid": null,
+        "n_opp_dice": 5,
+        "player_position": 0,
+        "min_kl_to_ch": 4.094343962222281,
+        "game_id": 404
+      },
+      {
+        "p_valid": null,
+        "action": 3,
+        "is_challenge": false,
+        "current_bid": null,
+        "n_opp_dice": 5,
+        "player_position": 0,
+        "min_kl_to_ch": 4.094343962222281,
+        "game_id": 3028
+      },
+      {
+        "p_valid": null,
+        "action": 11,
+        "is_challenge": false,
+        "current_bid": null,
+        "n_opp_dice": 5,
+        "player_position": 0,
+        "min_kl_to_ch": 4.094343962222281,
+        "game_id": 1658
+      },
+      {
+        "p_valid": null,
+        "action": 55,
+        "is_challenge": false,
+        "current_bid": null,
+        "n_opp_dice": 5,
+        "player_position": 0,
+        "min_kl_to_ch": 4.094343962222281,
+        "game_id": 1992
+      },
+      {
+        "p_valid": null,
+        "action": 8,
+        "is_challenge": false,
+        "current_bid": null,
+        "n_opp_dice": 5,
+        "player_position": 0,
+        "min_kl_to_ch": 4.094343962222281,
+        "game_id": 876
+      },
+      {
+        "p_valid": null,
+        "action": 38,
+        "is_challenge": false,
+        "current_bid": null,
+        "n_opp_dice": 5,
+        "player_position": 0,
+        "min_kl_to_ch": 4.094343962222281,
+        "game_id": 3952
+      }
+    ]
+  },
+  "bayesian": {
+    "non_ch_fraction": 0.16258830756629467,
+    "mean_min_kl": 0.5758365152319614,
+    "top_non_ch_states": [
+      {
+        "p_valid": null,
+        "action": 52,
+        "is_challenge": false,
+        "current_bid": null,
+        "n_opp_dice": 5,
+        "player_position": 0,
+        "min_kl_to_ch": 4.094343962222281,
+        "game_id": 0
+      },
+      {
+        "p_valid": null,
+        "action": 16,
+        "is_challenge": false,
+        "current_bid": null,
+        "n_opp_dice": 5,
+        "player_position": 0,
+        "min_kl_to_ch": 4.094343962222281,
+        "game_id": 1054
+      },
+      {
+        "p_valid": null,
+        "action": 46,
+        "is_challenge": false,
+        "current_bid": null,
+        "n_opp_dice": 5,
+        "player_position": 0,
+        "min_kl_to_ch": 4.094343962222281,
+        "game_id": 1042
+      },
+      {
+        "p_valid": null,
+        "action": 23,
+        "is_challenge": false,
+        "current_bid": null,
+        "n_opp_dice": 5,
+        "player_position": 0,
+        "min_kl_to_ch": 4.094343962222281,
+        "game_id": 3752
+      },
+      {
+        "p_valid": null,
+        "action": 24,
+        "is_challenge": false,
+        "current_bid": null,
+        "n_opp_dice": 5,
+        "player_position": 0,
+        "min_kl_to_ch": 4.094343962222281,
+        "game_id": 1044
+      },
+      {
+        "p_valid": null,
+        "action": 33,
+        "is_challenge": false,
+        "current_bid": null,
+        "n_opp_dice": 5,
+        "player_position": 0,
+        "min_kl_to_ch": 4.094343962222281,
+        "game_id": 3750
+      },
+      {
+        "p_valid": null,
+        "action": 40,
+        "is_challenge": false,
+        "current_bid": null,
+        "n_opp_dice": 5,
+        "player_position": 0,
+        "min_kl_to_ch": 4.094343962222281,
+        "game_id": 1046
+      },
+      {
+        "p_valid": null,
+        "action": 10,
+        "is_challenge": false,
+        "current_bid": null,
+        "n_opp_dice": 5,
+        "player_position": 0,
+        "min_kl_to_ch": 4.094343962222281,
+        "game_id": 3748
+      },
+      {
+        "p_valid": null,
+        "action": 53,
+        "is_challenge": false,
+        "current_bid": null,
+        "n_opp_dice": 5,
+        "player_position": 0,
+        "min_kl_to_ch": 4.094343962222281,
+        "game_id": 3746
+      },
+      {
+        "p_valid": null,
+        "action": 23,
+        "is_challenge": false,
+        "current_bid": null,
+        "n_opp_dice": 5,
+        "player_position": 0,
+        "min_kl_to_ch": 4.094343962222281,
+        "game_id": 1048
+      }
+    ]
+  },
+  "ppo": {
+    "non_ch_fraction": 0.20485525745387986,
+    "mean_min_kl": 0.7225146725789138,
+    "top_non_ch_states": [
+      {
+        "p_valid": null,
+        "action": 4,
+        "is_challenge": false,
+        "current_bid": null,
+        "n_opp_dice": 5,
+        "player_position": 0,
+        "min_kl_to_ch": 4.094343962222281,
+        "game_id": 0
+      },
+      {
+        "p_valid": null,
+        "action": 10,
+        "is_challenge": false,
+        "current_bid": null,
+        "n_opp_dice": 5,
+        "player_position": 0,
+        "min_kl_to_ch": 4.094343962222281,
+        "game_id": 960
+      },
+      {
+        "p_valid": null,
+        "action": 5,
+        "is_challenge": false,
+        "current_bid": null,
+        "n_opp_dice": 5,
+        "player_position": 0,
+        "min_kl_to_ch": 4.094343962222281,
+        "game_id": 3754
+      },
+      {
+        "p_valid": null,
+        "action": 5,
+        "is_challenge": false,
+        "current_bid": null,
+        "n_opp_dice": 5,
+        "player_position": 0,
+        "min_kl_to_ch": 4.094343962222281,
+        "game_id": 3752
+      },
+      {
+        "p_valid": null,
+        "action": 6,
+        "is_challenge": false,
+        "current_bid": null,
+        "n_opp_dice": 5,
+        "player_position": 0,
+        "min_kl_to_ch": 4.094343962222281,
+        "game_id": 992
+      },
+      {
+        "p_valid": null,
+        "action": 13,
+        "is_challenge": false,
+        "current_bid": null,
+        "n_opp_dice": 5,
+        "player_position": 0,
+        "min_kl_to_ch": 4.094343962222281,
+        "game_id": 3750
+      },
+      {
+        "p_valid": null,
+        "action": 6,
+        "is_challenge": false,
+        "current_bid": null,
+        "n_opp_dice": 5,
+        "player_position": 0,
+        "min_kl_to_ch": 4.094343962222281,
+        "game_id": 994
+      },
+      {
+        "p_valid": null,
+        "action": 5,
+        "is_challenge": false,
+        "current_bid": null,
+        "n_opp_dice": 5,
+        "player_position": 0,
+        "min_kl_to_ch": 4.094343962222281,
+        "game_id": 3748
+      },
+      {
+        "p_valid": null,
+        "action": 5,
+        "is_challenge": false,
+        "current_bid": null,
+        "n_opp_dice": 5,
+        "player_position": 0,
+        "min_kl_to_ch": 4.094343962222281,
+        "game_id": 996
+      },
+      {
+        "p_valid": null,
+        "action": 4,
+        "is_challenge": false,
+        "current_bid": null,
+        "n_opp_dice": 5,
+        "player_position": 0,
+        "min_kl_to_ch": 4.094343962222281,
+        "game_id": 3746
+      }
+    ]
+  },
+  "he2016": {
+    "non_ch_fraction": 0.2271795827123696,
+    "mean_min_kl": 0.7775520975492276,
+    "top_non_ch_states": [
+      {
+        "p_valid": null,
+        "action": 3,
+        "is_challenge": false,
+        "current_bid": null,
+        "n_opp_dice": 5,
+        "player_position": 0,
+        "min_kl_to_ch": 4.094343962222281,
+        "game_id": 0
+      },
+      {
+        "p_valid": null,
+        "action": 3,
+        "is_challenge": false,
+        "current_bid": null,
+        "n_opp_dice": 5,
+        "player_position": 0,
+        "min_kl_to_ch": 4.094343962222281,
+        "game_id": 3712
+      },
+      {
+        "p_valid": null,
+        "action": 3,
+        "is_challenge": false,
+        "current_bid": null,
+        "n_opp_dice": 5,
+        "player_position": 0,
+        "min_kl_to_ch": 4.094343962222281,
+        "game_id": 3746
+      },
+      {
+        "p_valid": null,
+        "action": 3,
+        "is_challenge": false,
+        "current_bid": null,
+        "n_opp_dice": 5,
+        "player_position": 0,
+        "min_kl_to_ch": 4.094343962222281,
+        "game_id": 968
+      },
+      {
+        "p_valid": null,
+        "action": 3,
+        "is_challenge": false,
+        "current_bid": null,
+        "n_opp_dice": 5,
+        "player_position": 0,
+        "min_kl_to_ch": 4.094343962222281,
+        "game_id": 3744
+      },
+      {
+        "p_valid": null,
+        "action": 1,
+        "is_challenge": false,
+        "current_bid": null,
+        "n_opp_dice": 5,
+        "player_position": 0,
+        "min_kl_to_ch": 4.094343962222281,
+        "game_id": 970
+      },
+      {
+        "p_valid": null,
+        "action": 3,
+        "is_challenge": false,
+        "current_bid": null,
+        "n_opp_dice": 5,
+        "player_position": 0,
+        "min_kl_to_ch": 4.094343962222281,
+        "game_id": 3742
+      },
+      {
+        "p_valid": null,
+        "action": 1,
+        "is_challenge": false,
+        "current_bid": null,
+        "n_opp_dice": 5,
+        "player_position": 0,
+        "min_kl_to_ch": 4.094343962222281,
+        "game_id": 972
+      },
+      {
+        "p_valid": null,
+        "action": 3,
+        "is_challenge": false,
+        "current_bid": null,
+        "n_opp_dice": 5,
+        "player_position": 0,
+        "min_kl_to_ch": 4.094343962222281,
+        "game_id": 3740
+      },
+      {
+        "p_valid": null,
+        "action": 3,
+        "is_challenge": false,
+        "current_bid": null,
+        "n_opp_dice": 5,
+        "player_position": 0,
+        "min_kl_to_ch": 4.094343962222281,
+        "game_id": 3738
+      }
+    ]
+  }
+}
