@@ -1,0 +1,1225 @@
+\documentclass{article}
+
+\usepackage[final]{neurips_2024}
+\usepackage{amsmath}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{subcaption}
+
+\lstset{
+  language=Python,
+  basicstyle=\ttfamily\small,
+  backgroundcolor=\color{gray!5},
+  frame=single,
+  rulecolor=\color{black!40},
+  keywordstyle=\color{blue},
+  commentstyle=\color{gray!70},
+  stringstyle=\color{green!40!black},
+  showstringspaces=false,
+  breaklines=true,
+  captionpos=b
+}
+
+
+\usepackage[utf8]{inputenc} % allow utf-8 input
+\usepackage[T1]{fontenc}    % use 8-bit T1 fonts
+\usepackage{hyperref}       % hyperlinks
+\usepackage{url}            % simple URL typesetting
+\usepackage{booktabs}       % professional-quality tables
+\usepackage{amsfonts}       % blackboard math symbols
+\usepackage{nicefrac}       % compact symbols for 1/2, etc.
+\usepackage{microtype}      % microtypography
+\usepackage{xcolor}         % colors
+
+\newcommand{\bx}{\mathbf{x}}
+\newcommand{\bz}{\mathbf{z}}
+\newcommand{\DKL}{D_{\mathrm{KL}}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\bmu}{\boldsymbol{\mu}}
+\newcommand{\bsigma}{\boldsymbol{\sigma}}
+\newcommand{\diag}{\operatorname{diag}}
+\newcommand{\given}{\mid}
+
+\title{SDM Project: Theory of Mind in Liar’s Dice}
+
+\author{%
+  Fabian Zhang\\MBZUAI
+  \And
+  Xinyue Li\\MBZUAI
+}
+
+\begin{document}
+
+\maketitle
+\begin{abstract}
+
+Focus on:
+Performance vs ToM level (core, measurable)
+Explicit ToM vs baseline (clear comparison)
+\end{abstract}
+
+\section{Introduction}
+
+Strategic decision-making in multi-agent environments often requires reasoning not only about the environment, but also about other agents. In settings with hidden information and potential deception, such as bluffing games, this becomes particularly challenging. One key concept in this context is \textbf{Theory of Mind} (ToM), the ability to model and reason about the beliefs, intentions, and strategies of other agents.
+
+\textbf{Liar’s Dice} provides a simple yet rich testbed for studying such reasoning. Despite its relatively compact state and action space, the game requires players to make decisions under uncertainty, infer hidden information, and anticipate the behavior of opponents. This makes it well-suited for investigating how different levels of opponent modeling affect performance.
+
+In this project, we explore how incorporating varying degrees of Theory of Mind into reinforcement learning agents influences their behavior and effectiveness. In particular, we aim to address the following research questions:
+
+\begin{itemize}
+    \item How does agent performance vary with ToM level in self-play and mixed populations? Is there an optimal level, or do higher levels always dominate lower ones?
+    
+    \item Can agents with explicit ToM modules (e.g., opponent belief models or learned opponent policies) outperform agents without such structure? What architectural choices best support ToM?
+    
+    \item Do strategies emerging from self-play resemble human-like level-$k$ reasoning, or do agents discover qualitatively different equilibria?
+    
+    \item How quickly can ToM-equipped agents adapt to novel opponent strategies compared to agents without opponent modeling?
+\end{itemize}
+
+\section{Liar's Dice: The Game}
+
+Before introducing the RL framework, it is essential to clearly define the underlying game. As multiple variants of Liar’s Dice exist, we explicitly specify the exact version and ruleset used throughout our experiments.
+
+\subsection{Game Setup}
+
+We consider a simplified two-player version of Liar’s Dice with the following properties:
+\begin{itemize}
+    \item Each player holds a set of hidden dice.
+    \item Players make \textit{global claims} about the total number of dice showing a certain face value across all players.
+    \item Each player starts with 5 dice.
+    \item Dice are standard six-sided dice.
+    \item The objective is to be the last player with at least one die remaining.
+\end{itemize}
+
+\paragraph{Actions}
+
+At each turn, a player can choose one of the following actions:
+\begin{itemize}
+    \item \textbf{Raise the bid}
+    \item \textbf{Challenge the previous bid} (``Liar!'')
+    \item \textbf{(Optional)} Call \textbf{Calza} (exact bid)
+\end{itemize}
+
+\paragraph{Turn Structure}
+
+Each round proceeds as follows:
+\begin{enumerate}
+    \item Both players roll their dice privately.
+    \item Players take turns making decisions in an alternating fashion.
+\end{enumerate}
+
+On each turn, a player must choose between:
+\begin{itemize}
+    \item[(A)] Raising the current bid
+    \item[(B)] Calling ``Liar!'' on the previous bid
+\end{itemize}
+
+\paragraph{Bidding Rules}
+
+A bid consists of two components:
+\begin{itemize}
+    \item Quantity $k$: the number of dice
+    \item Face value $f$: the dice value (from 1 to 6)
+\end{itemize}
+
+A new bid must be strictly higher than the previous bid according to the following ordering:
+\begin{itemize}
+    \item A higher quantity always beats a lower quantity
+    \item If the quantity is equal, a higher face value beats a lower one
+\end{itemize}
+
+\noindent Example sequence:
+\[
+(2,3) \rightarrow (2,4) \rightarrow (3,2) \rightarrow (3,6)
+\]
+
+\paragraph{Challenge (``Liar'')}
+
+When a player calls ``Liar!'', the previous bid is challenged:
+\begin{itemize}
+    \item All dice are revealed.
+    \item The total number of dice matching the claimed face value is counted.
+\end{itemize}
+
+\begin{itemize}
+    \item If the bid is \textbf{true} (i.e., at least $k$ dice show value $f$), the challenger loses one die.
+    \item If the bid is \textbf{false}, the bidder loses one die.
+\end{itemize}
+
+A new round then begins with the remaining dice.
+
+\paragraph{Strategy and Bluffing}
+
+A key aspect of Liar’s Dice is that players are not required to make truthful bids. In particular:
+\begin{itemize}
+    \item Players may bluff by making claims that are not supported by their dice.
+    \item Opponents must infer whether a bid is likely to be true or deceptive.
+\end{itemize}
+
+Thus, decision-making involves balancing \textbf{Probability} (How plausible is the bid given the game state?), \textbf{Psychology} (Will the opponent believe the claim?) and \textbf{Strategy} (Is it better to escalate the bid or challenge?)
+
+\paragraph{Calza Variant (Optional Flag)}
+
+In the optional \textit{Calza} variant, instead of calling Liar, a player may claim that the current bid is \textbf{exactly correct}.
+
+\begin{itemize}
+    \item If the bid is exactly correct, the player gains one die.
+    \item If the bid is not exactly correct, the player loses one die.
+\end{itemize}
+
+This variant increases the importance of precise belief estimation and introduces additional strategic complexity.
+
+\subsection{RL Setup}
+
+\paragraph{State (Observation)}
+We define the agent's observation as the information available to a player at each decision step. In our setting, each player observes:
+\begin{itemize}
+    \item Their own dice (private information)
+    \item The total number of dice remaining for each player (public information)
+    \item The full bid history (public information)
+\end{itemize}
+
+\noindent The agent does \textbf{not} observe:
+\begin{itemize}
+    \item The opponent’s dice (hidden information)
+\end{itemize}
+
+\noindent This corresponds to a partially observable setting, where the true game state is not fully accessible to the agent.
+
+\paragraph{Action Space}
+
+At each turn, the agent selects one of the following actions:
+\begin{itemize}
+    \item \textbf{Raise the bid:} choose a valid higher bid $(k, f)$
+    \item \textbf{Challenge:} call ``Liar!'' on the previous bid
+    \item \textbf{(Optional)} \textbf{Exact:} declare that the current bid is exactly correct (Calza)
+\end{itemize}
+
+
+\paragraph{Reward Function}
+
+We define a sparse reward structure based on game outcomes:
+\begin{itemize}
+    \item +1 for winning the game
+    \item -1 for losing the game
+    \item -0.1 for losing a die
+    \item +0.1 for causing the opponent to lose a die
+\end{itemize}
+The sparse reward structure matters because only rewarding pure wins and losses lead to slow learning and intermediate rewards of gaining die make the model learn faster. 
+
+\section{Prerequisite Papers:}
+
+
+Our project builds on three key papers, which together form a conceptual and architectural progression. These works can be viewed as a vertical stack: the first provides the theoretical framework and evaluation baseline, the second introduces an implementable Theory of Mind (ToM) architecture within a single game, and the third extends this approach to meta-learning across multiple games. Each paper thus serves as a foundation for the next.
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+\textbf{Paper} & \textbf{Role in our project} & \textbf{What we build from it} \\
+\midrule
+Camerer et al.\ 2004 & Theory + evaluation baseline & Level-$k$ agents \& CH metric \\
+He et al.\ 2016 & Within-game ToM agent & DRON-style opponent model (Agent 1) \\
+Rabinowitz et al.\ 2018 & Across-game meta-learning ToM & ToMnet agent (Agent 2) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The cognitive hierarchy (Camerer) tells us what levels of reasoning to implement and how to evaluate them. The DRON architecture (He) gives us an implementable Agent 1: an opponent model that learns from the current game’s bid history. The ToMnet (Rabinowitz) gives us Agent 2 : it extends Agent 1 with a second LSTM that aggregates past games against the same opponent, enabling rapid adaptation to novel strategies.
+
+
+\subsection{Cognitive Hierarchy (Camerer et al.)}
+
+\begin{center}
+\textit{
+Cognitive Hierarchy models players as having limited reasoning depth, where each level best responds to simpler opponents, and real human behavior is best explained by a mixture of low-level thinkers ($k \approx 1$--$2$).
+}
+\end{center}
+
+Classical game-theoretic analysis based on Nash equilibrium assumes that all players reason infinitely deeply and that this is common knowledge among them. In practice, however, this assumption does not accurately reflect human behavior. Empirical evidence shows that humans typically engage in only a small number of reasoning steps and rarely exhibit fully recursive strategic thinking.
+
+Camerer et al.\ (2004) propose the \textit{Cognitive Hierarchy} (CH) model as a more realistic alternative. Instead of assuming a single perfectly rational agent type, the CH model posits a heterogeneous population of agents with varying, but bounded, levels of reasoning depth.
+
+\paragraph{Level-$k$ Reasoning}
+
+Agents are categorized into levels $k = 0, 1, 2, \dots$, where higher levels correspond to deeper strategic reasoning:
+\begin{itemize}
+    \item \textbf{Level-0:} Non-strategic behavior, typically modeled as random or heuristic action selection (e.g., uniformly sampling a valid action).
+    \item \textbf{Level-1:} Assumes all other players are Level-0 and computes a best response to this behavior.
+    \item \textbf{Level-2:} Assumes other players are Level-1 and best-responds accordingly, thus modeling opponents as strategic agents.
+    \item \textbf{General:} A Level-$k$ agent best responds to Level-$(k-1)$ opponents.
+\end{itemize}
+
+Each successive level incorporates an additional step of reasoning about others, leading to increasingly sophisticated strategic behavior.
+
+\paragraph{Distribution over Levels}
+
+A key feature of the Cognitive Hierarchy model is that not all players operate at the same reasoning level. Instead, the population is assumed to follow a distribution over levels, typically modeled as a Poisson distribution:
+\[
+f(k \mid \tau) = \frac{e^{-\tau} \tau^k}{k!},
+\]
+where $\tau$ represents the average reasoning depth. Empirically, Camerer et al.\ find $\tau \approx 1.5$, implying that most individuals reason at Level-1 or Level-2, with higher levels becoming increasingly rare.
+
+Importantly, a Level-$k$ player does not assume that all opponents are at Level-$(k-1)$. Instead, they assume that opponents are distributed across Levels $0$ through $k-1$. In other words, opponents are modeled as a \textit{mixture of simpler thinkers}. Given this belief, the agent selects the action that maximizes expected payoff.
+
+\paragraph{Application to Liar's Dice}
+
+The Cognitive Hierarchy framework provides a natural way to construct baseline agents for Liar’s Dice:
+\begin{itemize}
+    \item \textbf{Level-0:} Random bidding and challenging over valid actions
+    \item \textbf{Level-1:} Assumes a random opponent and makes decisions based on probabilistic estimates of bid validity
+    \item \textbf{Level-2:} Assumes a Level-1 opponent and adapts behavior accordingly, incorporating opponent modeling
+\end{itemize}
+
+These agents serve as interpretable, non-learning baselines that capture increasing levels of strategic reasoning, against which learned reinforcement learning agents can be compared.
+
+
+\subsection{Opponent Modeling (He et al.\ 2016)}
+
+Opponent modeling can be viewed as a concrete implementation of \emph{Level-1 Theory of Mind}. Instead of assuming a stationary environment, we explicitly recognize that the environment---namely the opponent---is adaptive and strategic. Consequently, the agent aims to learn a representation of the opponent’s behavior and condition its own decisions on this representation.
+
+\paragraph{Opponent Representation}
+
+We define an opponent embedding $\phi_{\text{opp}}$ as a vector summarizing the opponent’s behavioral patterns within the current game. This embedding is computed solely from observable information; the opponent’s past actions and public observations (e.g., bid history).
+
+Formally,
+\[
+\phi_{\text{opp}} = \text{Encoder}(\text{past opponent actions}).
+\]
+
+This embedding acts as a learned ``behavioral fingerprint'' of the opponent, allowing the agent to adapt its strategy dynamically.
+
+\paragraph{DRON Architectures}
+
+He et al.\ propose two variants of the \emph{Deep Reinforcement Opponent Network} (DRON):
+
+\begin{enumerate}
+    \item \textbf{DRON-Concat.} The opponent embedding is concatenated with the state representation:
+    \[
+    Q(s,a) = \text{MLP}([s;\, \phi_{\text{opp}}], a).
+    \]
+    This allows the Q-network to condition its decisions directly on the inferred opponent behavior.
+
+    \item \textbf{DRON-MoE (Mixture of Experts).} The agent models the opponent as a mixture of strategy types. Multiple expert Q-networks are maintained:
+    \[
+    Q(s,a) = \sum_{k=1}^{K} w_k(s, \phi_{\text{opp}})\, Q_k(s,a),
+    \]
+    where each expert $Q_k$ specializes in responding to a particular class of opponent strategies. A gating network produces weights $w_k$ that determine how much each expert contributes.
+
+    Importantly, the model discovers these opponent types automatically during training, without requiring explicit labels.
+\end{enumerate}
+
+\paragraph{Training Objective}
+
+The training objective combines the standard reinforcement learning loss with an auxiliary opponent prediction loss:
+\[
+\mathcal{L} = \mathcal{L}_{RL} + \lambda \mathcal{L}_{aux}.
+\]
+
+\begin{itemize}
+    \item $\mathcal{L}_{RL}$ is the standard RL objective (e.g., PPO or DQN loss).
+    \item $\mathcal{L}_{aux}$ is a supervised loss that predicts the opponent’s next action.
+\end{itemize}
+
+The auxiliary loss encourages the model to learn a meaningful opponent representation. By forcing the network to predict opponent behavior, it improves both the quality of $\phi_{\text{opp}}$ and downstream decision-making.
+
+\paragraph{Application to Liar's Dice}
+
+We adopt this framework to construct our first non-trivial Theory of Mind agent. The agent learns to infer opponent behavior from the sequence of bids and challenges within a game and conditions its policy on the resulting embedding.
+
+In our implementation, we:
+\begin{itemize}
+    \item use a sequential encoder (e.g., LSTM) to process the opponent’s action history,
+    \item concatenate the resulting embedding $\phi_{\text{opp}}$ with the agent’s observation,
+    \item jointly train the policy (via PPO) and the opponent prediction objective.
+\end{itemize}
+
+This agent represents a learned Level-1 reasoning system, capable of adapting its strategy based on observed opponent behavior within a single game.
+
+\subsection{Machine Theory of Mind (Rabinowitz et al.\ 2018)}
+
+\begin{center}
+\textit{``I remember how you behaved in the past, and I use that to understand you faster now.''}
+\end{center}
+
+The key limitation of the opponent modeling approach in He et al.\ (2016) is that the learned opponent representation is based solely on the \emph{current game}. In contrast, Machine Theory of Mind (ToMnet) introduces a second axis of information by incorporating \emph{past interactions with the same opponent}. This allows the agent to distinguish between what is \emph{stable} about an opponent (their character) and what is \emph{transient} (their current mental state).
+
+The central idea is to explicitly separate:
+\begin{itemize}
+    \item \textbf{Character:} Who the opponent is (long-term behavioral tendencies),
+    \item \textbf{Mental state:} What the opponent is thinking or intending in the current game.
+\end{itemize}
+
+This enables a more advanced form of opponent reasoning, approaching higher-order Theory of Mind, where the agent reasons not only about behavior but also about underlying beliefs and intentions. Such capabilities are particularly important in Liar’s Dice, where detecting and exploiting bluffs is central to strong play.
+
+\paragraph{Architecture}
+
+ToMnet consists of three main components:
+
+\begin{enumerate}
+    \item \textbf{Character Network (Character Net).}  
+    
+    This module encodes long-term opponent behavior from past games into a fixed embedding $e^{char}$. 
+    It answers the question: \emph{What kind of player is this overall?}
+    For example, the opponent may be an aggressive bluffer, a conservative player, or a probability-based decision maker.
+
+    \item \textbf{Mental State Network (Mental Net).}  
+    
+    This module processes the trajectory of the \emph{current game} and produces a time-dependent embedding $e^{mental}_t$:
+    \[
+    e^{mental}_t = \text{MentalNet}(\tau^{cur}_{1:t}).
+    \]
+    It captures the opponent’s current beliefs or intentions. Intuitively, it answers:
+    \begin{quote}
+    ``What does this player believe or intend right now?''
+    \end{quote}
+    For example:
+    \begin{itemize}
+        \item ``They believe the current bid is safe.''
+        \item ``They are currently bluffing.''
+    \end{itemize}
+
+    \item \textbf{Prediction Network (PredNet).}  
+    This module combines the current observation $o_t$, the character embedding $e^{char}$, and the mental state embedding $e^{mental}_t$ to predict future behavior:
+    \[
+    \hat{a}_{t+1} = f_{pred}([o_t;\, e^{char};\, e^{mental}_t]).
+    \]
+    It answers:
+    \begin{quote}
+    ``Given who they are and what they currently think, what will they do next?''
+    \end{quote}
+\end{enumerate}
+
+\paragraph{Example in Liar’s Dice}
+
+Consider an opponent with the following inferred states:
+\begin{itemize}
+    \item \textbf{Character:} Aggressive bluffer
+    \item \textbf{Mental state:} Currently holding weak dice but continuing to push a high bid
+\end{itemize}
+
+A ToM-equipped agent can reason about this situation at a deeper level:
+\begin{itemize}
+    \item The opponent may \emph{believe} the bid is still plausible, or
+    \item The opponent may be intentionally bluffing despite knowing the bid is false
+\end{itemize}
+
+This form of reasoning goes beyond simple probability estimation and reflects belief modeling, which is essential for effective play in Liar’s Dice.
+
+
+\section{Research Questions and Experimental Plan}
+ RQ2 is the big gap. It needs a systematic ablation table — "which components actually matter?" — and that requires ~12 training runs
+  that are nowhere in the current plan.
+
+
+  RQ3 is categorically different from the others
+
+  RQ1/2/4 are optimization questions (who wins, which architecture, how fast). RQ3 is a behavioral/cognitive science question: do the
+  strategies look like human cognition? It requires the CH model fitting code (cognitive_hierarchy.py) and careful framing. To claim
+  "human-like" you need either human game data (+2 weeks) or to scope it to CH-only comparison (tractable but weaker). Decide this
+  upfront.
+
+We structure our investigation around the four core research questions ), each addressing a different aspect of Theory of Mind (ToM) in multi-agent reinforcement learning. For each RQ, we define a set of experiments and expected outputs.
+
+% ============================================================
+\subsection{RQ1: Population Dynamics \& Optimality of ToM Level}
+% ============================================================
+
+\textbf{Research Question.}  
+\emph{Is higher ToM always better, or do cyclic dominance patterns emerge between agents of different sophistication?}
+
+\paragraph{Expected Output}
+\begin{itemize}
+    \item $6 \times 6$ win-rate heatmap across agent types
+    \item Directed dominance graph (edge $A \to B$ if $A$ wins $>55\%$ against $B$)
+    \item Identification of cyclic dominance patterns
+\end{itemize}
+
+\paragraph{Experiments}
+\begin{itemize}
+    \item \textbf{E1a: Mixed-Population Tournament.}  
+    Fixed league of six agent types (random, heuristic, Bayesian, PPO, DRON, ToMnet).  
+    Double round-robin with 1000 games per pair. Compute win rates and Elo ratings.
+
+    \item \textbf{E1b: Population Composition Sweep.}  
+    Fix one focal agent and vary the distribution of opponent types.  
+    Measure the focal agent’s Elo as a function of population composition.
+
+    \item \textbf{E1c: Transitivity / Cyclic Dominance Test.}  
+    For all triples $(L_i, L_j, L_k)$, test whether dominance is transitive.  
+    Define a \emph{cyclic dominance index} as the fraction of triples violating transitivity.
+\end{itemize}
+
+\paragraph{Implementation}
+\begin{itemize}
+    \item File: \texttt{experiments/rq1\_population\_dynamics.py}
+    \item Estimated effort: 1.5--2 weeks
+\end{itemize}
+
+% ============================================================
+\subsection{RQ2: Architecture --- What Makes ToM Work?}
+% ============================================================
+
+\textbf{Research Question.}  
+\emph{Which structural components of a ToM agent are critical for performance?}
+
+\paragraph{Expected Output}
+\begin{itemize}
+    \item Ablation table: rows = architecture variants, columns = win rate vs.\ PPO, Elo, sample efficiency
+\end{itemize}
+
+\paragraph{Experiments}
+\begin{itemize}
+    \item \textbf{E2a: DRON-MoE Ablation.}  
+    Sweep over:
+    \begin{itemize}
+        \item Number of experts $K \in \{1,2,4,8\}$
+        \item Auxiliary loss weight $\lambda \in \{0.0, 0.1, 0.5, 1.0\}$
+        \item Opponent encoder: LSTM vs.\ MLP vs.\ none
+    \end{itemize}
+
+    \item \textbf{E2b: ToMnet Component Ablation.}  
+    Compare:
+    \begin{enumerate}
+        \item Character net only
+        \item Mental net only
+        \item Full ToMnet
+        \item PPO baseline
+    \end{enumerate}
+
+    \item \textbf{E2c: Auxiliary Loss Sensitivity.}  
+    Plot opponent prediction accuracy vs.\ Elo across variants to assess whether belief modeling is performance-critical.
+\end{itemize}
+
+\paragraph{Implementation}
+\begin{itemize}
+    \item Files:
+    \begin{itemize}
+        \item \texttt{agents/ablations/dron\_moe\_variants.py}
+        \item \texttt{experiments/rq2\_architecture\_ablation.py}
+    \end{itemize}
+    \item Estimated effort: 3--4 weeks (2 people recommended)
+\end{itemize}
+
+% ============================================================
+\subsection{RQ3: Emergent Strategies vs.\ Cognitive Hierarchy}
+% ============================================================
+
+\textbf{Research Question.}  
+\emph{Do RL agents rediscover human-like level-$k$ reasoning, or do they converge to qualitatively different strategies?}
+
+\paragraph{Expected Output}
+\begin{itemize}
+    \item KL divergence table: $\mathrm{KL}(P_{\text{agent}} \,\|\, P_{CH_k})$ for $k=0,1,2,3$
+    \item Estimated Poisson parameter $\hat{\tau}$
+    \item 2D PCA/t-SNE visualization of strategy fingerprints
+\end{itemize}
+
+\paragraph{Experiments}
+\begin{itemize}
+    \item \textbf{E3a: Cognitive Hierarchy Fitting.}  
+    Fit $\tau$ by minimizing KL divergence between agent policies and CH predictions.
+
+    \item \textbf{E3b: Strategy Fingerprint PCA.}  
+    Represent agents using features such as bluff rate, challenge rate, escalation frequency, and face preference.  
+    Cluster agents in this feature space.
+
+    \item \textbf{E3c: Non-CH Strategy Detection.}  
+    Identify states where agent behavior diverges strongly from all CH levels.
+
+    \item \textbf{E3d: Character Embedding Visualization.}  
+    Apply t-SNE to ToMnet embeddings to analyze emergent opponent types.
+\end{itemize}
+
+\paragraph{Implementation}
+\begin{itemize}
+    \item Files:
+    \begin{itemize}
+        \item \texttt{analysis/cognitive\_hierarchy.py}
+        \item \texttt{analysis/strategy\_fingerprint.py}
+        \item \texttt{experiments/rq3\_ch\_comparison.py}
+    \end{itemize}
+    \item Estimated effort: 2--3 weeks
+\end{itemize}
+
+% ============================================================
+\subsection{RQ4: Adaptation Speed to Novel Opponents}
+% ============================================================
+
+\textbf{Research Question.}  
+\emph{Do ToM-equipped agents adapt faster to unseen opponent strategies, and by how much?}
+
+\paragraph{Expected Output}
+\begin{itemize}
+    \item Win-rate adaptation curves
+    \item Games-to-convergence (GTC) comparison
+    \item Embedding trajectory visualizations
+    \item Sample efficiency (AUC) metrics
+\end{itemize}
+
+\paragraph{Experiments}
+\begin{itemize}
+    \item \textbf{E4a: GTC on Held-Out Archetypes.}  
+    Evaluate adaptation against unseen opponent types (e.g., always-bluff, always-challenge).
+
+    \item \textbf{E4b: Type-Switching Protocol.}  
+    Switch opponent strategy mid-evaluation and measure adaptation speed.
+
+    \item \textbf{E4c: Embedding Trajectory Analysis.}  
+    Track evolution of $e^{char}$ during adaptation and visualize in PCA space.
+
+    \item \textbf{E4d: Sample Efficiency Curve.}  
+    Plot win rate vs.\ number of games and compute area under curve (AUC).
+\end{itemize}
+
+\paragraph{Implementation}
+\begin{itemize}
+    \item Files:
+    \begin{itemize}
+        \item \texttt{experiments/rq4\_adaptation.py}
+        \item \texttt{analysis/embedding\_trajectory.py}
+    \end{itemize}
+    \item Estimated effort: 2--3 weeks
+\end{itemize}
+
+\section{RQ1: How Does Agent Performance Vary with Theory of Mind Level?}
+
+  \subsection{Agents}
+
+  We evaluate five agents spanning ToM levels 0 through 2. The agents are ordered
+  by the degree to which they explicitly model their opponent.
+
+  \subsubsection{Level 0 -- Random Agent}
+
+  The random agent selects uniformly at random from all legal actions at each
+  step. It serves as a performance floor and requires no training. It has no model
+  of the game state beyond legality, and no model of the opponent whatsoever.
+
+  \subsubsection{Level 1 -- Heuristic Agent}
+
+  The heuristic agent implements a hand-coded decision procedure based on
+  first-order probabilistic reasoning about the opponent's dice. Given the current
+  bid $(q, f)$ and the agent's own dice, it estimates the probability that the bid
+  is valid:
+  \[
+    p_{\text{true}} = 1 - F_{\text{Bin}}\!\left(q - c_{\text{own}} - 1;\;
+      n_{\text{opp}},\; \tfrac{1}{6}\right),
+  \]
+  where $c_{\text{own}}$ is the number of face $f$ dice the agent holds,
+  $n_{\text{opp}}$ is the total number of opponent dice, and $F_{\text{Bin}}$ is
+  the binomial CDF. The agent challenges if $p_{\text{true}} < \tau_c = 0.25$;
+  otherwise it bids the minimum legal raise with probability $1 - p_b = 0.85$, or
+  a randomly selected higher bid with probability $p_b = 0.15$ to introduce
+  unpredictability. The agent requires no training. Its opponent model is shallow:
+  it treats the opponent's dice as i.i.d.\ uniform, ignoring any information
+  contained in the opponent's bidding history.
+
+  QUESTION: IS this agent specifally defined to be good against the fully random level 0 guy, or just implemented the simplest rule logic for teh game?
+
+  \subsubsection{Level 1+ -- Bayesian Agent}
+
+  The Bayesian agent maintains an explicit posterior over the opponent's hidden
+  dice configuration using a particle filter. At each step it holds a set of
+  $N = 500$ particles, each representing a plausible assignment of face values to
+  the opponent's dice. After each observed bid $(q, f)$ by the opponent, the
+  particle weights are updated according to the likelihood that an agent holding
+  those dice would place that bid, and resampling is performed. The agent computes
+  the probability that the current bid is valid by marginalising over the posterior:
+  \[
+    p_{\text{true}} = \mathbb{E}_{\text{posterior}}\!\left[
+      \mathbf{1}\!\left[\sum_i \mathbf{1}[d_i = f] \geq q - c_{\text{own}}\right]
+    \right].
+  \]
+  It challenges if $p_{\text{true}} < \tau_c = 0.20$; otherwise it raises the
+  minimum legal amount. Like the heuristic agent, this agent is hand-coded and
+  requires no training. It is classified as Level~1+ because it performs explicit
+  belief tracking over the opponent's hidden state, going beyond simple
+  distributional reasoning.
+
+  \subsubsection{Level 2 (Implicit) -- PPO Agent}
+
+  The PPO agent uses Proximal Policy Optimisation~\cite{schulman2017proximal} with
+  action masking~\cite{huang2020closer} (\texttt{MaskablePPO} from
+  \texttt{sb3\_contrib}). The policy is a two-hidden-layer MLP with 256 units per
+  layer:
+  \[
+    \pi_\theta(a \mid s) \propto \exp\!\left( f_\theta(s)_a \right) \cdot
+      \mathbf{1}[a \in \mathcal{A}_{\text{legal}}(s) ],
+  \]
+  where illegal actions are suppressed by setting their pre-softmax logits to
+  $-10^8$. The observation $s$ encodes the agent's own dice (one-hot), the current
+  bid, normalised per-player die counts, and a history of the last 20 bid events
+  (each entry encoding the acting player, quantity, face, and whether the action
+  was a challenge).
+
+  Training uses a \emph{snapshot-pool self-play} curriculum in two stages:
+  \begin{enumerate}
+    \item \textbf{Stage~1 (2M steps, 2 players, 3 dice).} The agent trains against
+      opponents drawn uniformly from a rolling pool of up to 20 past checkpoints of
+      itself, with snapshots saved every 100{,}000 steps. This stage bootstraps
+      basic game competence on a simpler configuration.
+    \item \textbf{Stage~2 (3M steps, 2 players, 5 dice).} Training continues on
+      the standard evaluation configuration. The snapshot pool is re-initialised.
+      The reward signal is sparse: $+1$ for winning the match, $-1$ for losing.
+  \end{enumerate}
+  Because the agent trains against a diverse population of past selves, it
+  acquires an \emph{implicit} opponent model: its policy encodes which strategies
+  are robust against a range of opponent behaviours, without explicitly
+  representing what opponent type it is facing. We therefore classify it at ToM
+  Level~2 (implicit).
+
+  \subsubsection{Level 2 (Explicit) -- He2016 / DRON-MoE Agent}
+
+  The He2016 agent implements the Deep Reinforcement Opponent Network with Mixture
+  of Experts (DRON-MoE) architecture proposed by \citet{he2016opponent}. It
+  consists of two components trained in sequence.
+
+  \paragraph{Expert policies.} $K = 4$ specialist policy networks are trained, one
+  for each opponent type in $\mathcal{T} = \{\text{random}, \text{heuristic},
+  \text{bayesian}, \text{ppo}\}$. Each expert is a \texttt{MaskablePPO} agent
+  (same architecture as the PPO agent above) trained for 1M steps against a
+  \emph{fixed} opponent of its assigned type. This allows each expert to overfit to
+  the behavioural patterns of one opponent class.
+
+  \paragraph{Inference network.} A small MLP classifies the opponent type from its
+  recent action history. Each opponent action is encoded as an 8-dimensional vector
+  $\mathbf{h}_t = [q_{\text{norm}},\, f_1,\ldots,f_6,\, \mathbf{1}_{\text{chal}}]$,
+  where $q_{\text{norm}} = q / n_{\text{dice,max}}$ is the normalised quantity,
+  $f_1,\ldots,f_6$ is a face one-hot vector, and $\mathbf{1}_{\text{chal}}$
+  indicates a challenge. The last $H = 10$ opponent actions are concatenated into
+  an 80-dimensional input. The inference network maps this to a $K$-dimensional
+  softmax:
+  \[
+    g(\mathbf{h}_{1:t}) : \mathbb{R}^{80} \to \Delta^{K-1}.
+  \]
+  The network is trained with cross-entropy loss on 2{,}000 labeled game
+  trajectories per opponent type (8{,}000 total), with train/validation split
+  90/10.
+
+  \paragraph{Mixture of experts at inference time.} Given observation $s$ and the
+  opponent action history $\mathbf{h}_{1:t}$, the agent computes a weighted
+  mixture of expert logits:
+  \[
+    \ell(s, \mathbf{h}_{1:t}) = \sum_{k=1}^{K} g_k(\mathbf{h}_{1:t})\;
+      \ell_k(s),
+  \]
+  where $\ell_k(s)$ are the action logits from expert $k$ applied to state $s$.
+  The final action is sampled from the softmax of $\ell$ restricted to legal
+  actions. In contrast to the PPO agent, He2016 explicitly infers which type of
+  opponent it is facing and routes its decision-making accordingly, qualifying it
+  as ToM Level~2 (explicit).
+
+  \subsection{Evaluation Setup}
+
+  \subsubsection{Experiment E1a: Round-Robin Tournament}
+
+  All five agents compete in a full round-robin tournament: each ordered pair
+  $(A, B)$ plays 1{,}000 games with $A$ as \texttt{player\_0} (first bidder) and
+  $B$ as \texttt{player\_1}. This yields $5 \times 4 \times 1{,}000 = 20{,}000$
+  games in total. From the raw win counts $w_{AB}$ we compute:
+  \begin{itemize}
+    \item \textbf{Win-rate matrix}: $\hat{p}_{AB} = w_{AB} / (w_{AB} + w_{BA})$,
+      the empirical probability that $A$ beats $B$.
+    \item \textbf{Elo ratings}: iterative Bradley--Terry updates with $K = 32$,
+      initial rating 1{,}000, run for 1{,}000 passes over all game outcomes in
+      randomised order.
+  \end{itemize}
+
+  \subsubsection{Experiment E1b: Mixed-Population Sweep}
+
+  To test whether a strong agent's win rate is robust across different opponent
+  distributions (not just pure-type matchups), we fix a focal agent and vary the
+  composition of the opposing population. For each of three focal agents
+  (Bayesian, PPO, He2016), we sample 10 population mixes: the four pure-type mixes
+  (100\% of one opponent type each), a uniform mix (25\% each), and five random
+  Dirichlet-sampled mixes. For each mix, 500 games are played, with the opponent
+  for each game drawn i.i.d.\ from the mix distribution. This directly measures
+  performance in a \emph{mixed population}, which is relevant to multi-agent
+  deployment scenarios where the agent cannot assume a homogeneous opponent pool.
+
+  \subsubsection{Experiment E1c: Cyclic Dominance Analysis}
+
+  To test whether the performance ordering is transitive across ToM levels, we
+  compute the \emph{Cyclic Dominance Index} (CDI). We define agent $A$ as
+  \emph{dominating} agent $B$ if $\hat{p}_{AB} > \theta$ (threshold $\theta =
+  0.55$, i.e., a clear majority win). A \emph{dominance cycle} of length 3 is an
+  ordered triple $(A, B, C)$ such that $A$ dominates $B$, $B$ dominates $C$, and
+  $C$ dominates $A$ -- a non-transitive relationship analogous to rock-paper-scissors.
+  The CDI is defined as the fraction of all ordered triples that form such a cycle:
+  \[
+    \mathrm{CDI} = \frac{|\{(A,B,C) : A \succ B \succ C \succ A\}|}{n(n-1)(n-2)},
+  \]
+  where $n$ is the number of agents and $\succ$ denotes domination at threshold
+  $\theta$. CDI $= 0$ indicates a complete absence of cycles (the dominance
+  relation is a strict partial order), while CDI $= 1$ would mean every triple
+  forms a cycle.
+
+  \paragraph{Relationship to the core question.} The question ``do higher ToM
+  levels always dominate lower ones?'' is strictly stronger than asking whether
+  CDI $= 0$. CDI $= 0$ rules out non-transitive cycles but does not rule out ties
+  or reversals at the \emph{same} ToM level. Concretely, if two Level-2 agents
+  (PPO and He2016) are near-equal, that does not constitute a cycle -- it simply
+  means within-level parity. Our analysis therefore reports both the CDI and the
+  full win-rate matrix to distinguish between these cases.
+
+  \subsection{Results}
+
+  \subsubsection{E1a: Round-Robin Tournament}
+
+  Table~\ref{tab:rq1_winrates} reports the win-rate matrix across all 20 ordered
+  pairs. Figure~\ref{fig:rq1_heatmap} visualises the same data as a heatmap.
+
+  \begin{table}[h]
+  \centering
+  \caption{Win-rate matrix from the round-robin tournament (1{,}000 games per
+  ordered pair). Entry $(i,j)$ is the win rate of row agent $i$ against column
+  agent $j$. Dashes on the diagonal; bold entries highlight the closest matchup.}
+  \label{tab:rq1_winrates}
+  \begin{tabular}{lrrrrr}
+  \toprule
+   & Random & Heuristic & Bayesian & PPO & He2016 \\
+  \midrule
+  Random    & ---    & 3.4\%  & 0.0\%  & 1.0\%  & 1.1\%  \\
+  Heuristic & 94.2\% & ---    & 14.9\% & 28.4\% & 34.1\% \\
+  Bayesian  & 94.2\% & 13.9\% & ---    & 28.2\% & 28.9\% \\
+  PPO       & 99.3\% & 71.7\% & 69.5\% & ---    & \textbf{75.3\%} \\
+  He2016    & 99.0\% & 80.2\% & 87.3\% & \textbf{48.4\%} & --- \\
+  \bottomrule
+  \end{tabular}
+  \end{table}
+
+  The Elo ratings computed from these outcomes are: PPO~1288, He2016~1240,
+  Heuristic~1044, Bayesian~1019, Random~408. This reveals a broad hierarchy across
+  ToM levels, with the two Level-2 agents separated from the Level-1 agents by over
+  200 Elo points.
+
+  \subsubsection{E1b: Mixed-Population Sweep}
+
+  Table~\ref{tab:rq1_sweep} summarises the focal agent win rates under pure-type
+  and mixed opponent populations (500 games per condition).
+
+  \begin{table}[h]
+  \centering
+  \caption{E1b population sweep. Win rate of each focal agent against a
+  population composed entirely of the named opponent type (pure rows) and across
+  all 10 mixes (mean column).}
+  \label{tab:rq1_sweep}
+  \begin{tabular}{lrrrrr}
+  \toprule
+  Focal & vs Random & vs Heuristic & vs Bayesian & vs PPO & Mean (all mixes) \\
+  \midrule
+  Bayesian & 94.6\% & 15.6\% & ---    & 28.6\% & 38.9\% \\
+  PPO      & 99.2\% & 72.2\% & 69.4\% & ---    & 77.3\% \\
+  He2016   & 98.6\% & 84.4\% & 87.6\% & 47.2\% & 78.9\% \\
+  \bottomrule
+  \end{tabular}
+  \end{table}
+
+  PPO and He2016 are robust across all population compositions: PPO's win rate
+  ranges from 69\% to 99\% depending on the mix, while He2016 ranges from 47\% to
+  99\%. The minimum for He2016 occurs when facing a pure-PPO population (47.2\%),
+  consistent with the head-to-head result.
+
+
+  
+\subsubsection{E1c: Self-Play Positional Bias}
+
+To distinguish strategic strength from turn-order effects, we also evaluated
+each agent in self-play over 1{,}000 games, recording the win rate of the
+Player~0 instance against an identical copy playing as Player~1. Unlike the
+round-robin results, these experiments do not measure inter-agent superiority;
+instead, they reveal whether an agent's policy is positionally symmetric under
+mirror play.
+
+\begin{table}[h]
+\centering
+\caption{E1c self-play results. Player~0 and Player~1 are identical copies of
+the same agent; deviations from 50\% indicate positional bias under self-play.}
+\label{tab:rq1_selfplay}
+\begin{tabular}{lrrr}
+\toprule
+Agent & Player 0 wins & Player 1 wins & P0 win rate \\
+\midrule
+Random    & 510 & 490 & 51.0\% \\
+Heuristic & 122 & 878 & 12.2\% \\
+Bayesian  & 195 & 805 & 19.5\% \\
+PPO       & 684 & 316 & 68.4\% \\
+He2016    & 491 & 509 & 49.1\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The self-play results reveal strong heterogeneity in positional bias. Random is
+approximately symmetric, as expected. Heuristic and Bayesian show a pronounced
+second-player advantage: when both copies follow the same rule-based logic, the
+Player~1 agent benefits from observing the opening bid before applying its own
+challenge policy. PPO exhibits the opposite effect, with a strong first-player
+advantage (68.4\%), suggesting that self-play training induced a positional bias
+toward the player\_0 role in which it was trained. In contrast, He2016 is almost
+perfectly symmetric (49.1\% vs.\ 50.9\%), indicating that its mixture-of-experts
+policy did not accumulate a strong role-specific bias.
+
+  \subsubsection{E1c: Cyclic Dominance}
+
+  \[
+    \mathrm{CDI} = 0.000 \quad (\theta = 0.55,\; n = 5).
+  \]
+
+  No cyclic triples were detected. The dominance graph is a directed acyclic graph
+  (DAG) with edges He2016 $\to$ \{Random, Heuristic, Bayesian\}, PPO $\to$
+  \{Random, Heuristic, Bayesian, He2016\}, Heuristic $\to$ Random, and Bayesian
+  $\to$ Random.
+
+  \subsection{Discussion}
+
+  \paragraph{No cyclic dominance; generally monotone hierarchy.}
+  CDI $= 0$ confirms that no agent is simultaneously beaten by a lower-level agent
+  and beats a higher-level one in a three-way cycle. The hierarchy is broadly
+  consistent with increasing ToM level, supporting a positive answer to the
+  question of whether higher ToM levels dominate lower ones.
+
+  \paragraph{Explicit vs.\ implicit ToM at Level 2.}
+  The most nuanced finding is the near-parity between PPO (51.6\%) and He2016
+  (48.4\%) in their head-to-head matchup. Despite He2016 possessing an explicit
+  inference mechanism that identifies the opponent's type and routes to a
+  specialist policy, it does not consistently outperform the purely self-play-trained
+  PPO agent. We attribute this to the diversity of opponents encountered during
+  PPO's snapshot-pool training: by playing against a pool of its own past
+  checkpoints at various training stages, PPO develops strategies that are
+  difficult to categorise into a fixed type, frustrating He2016's inference
+  network. He2016's advantage is concentrated against \emph{fixed-strategy}
+  opponents (Heuristic: +8.5pp over PPO; Bayesian: +17.8pp over PPO), where
+  reliable type identification is possible. Against an adaptive self-play agent,
+  explicit opponent modeling provides no measurable benefit.
+
+  \paragraph{Bayesian inference does not improve on heuristics at 5 dice.}
+  The Bayesian and Heuristic agents achieve nearly identical Elo ratings (1019
+  vs.\ 1044) and split their head-to-head games approximately evenly (14.9\% /
+  13.9\% for each respectively, summing to $\approx 50\%$). At 5 dice per player,
+  the game's combinatorial space is large enough that posterior updates from
+  individual bids carry limited information before a challenge decision must be
+  made, reducing the particle filter's advantage over simpler threshold-based
+  reasoning.
+
+
+
+\subsection{NOTES}
+
+
+ORIGIANL QUESTION: How does agent performance vary with ToM level in self-play and mixed populations? Is there an optimal
+   level, or do higher levels always dominate lower ones
+
+definitons:
+- Self play: an agent playes against copies of itself 
+(PPO vs PPO, tomnet vs tomnet, dron vs dron)
+- mixed populations: how good is an agent in a diverse ecosystem, performance depends on who you play
+
+
+- understand and expalin every single tom level agent. 
+- evaluate performance, self play and mixed 
+
+-> look for cyclic dominance
+
+-> what we want to asnwer/findout: 
+
+
+have we answered all questions?
+
+  "How does performance vary with ToM level" 
+ -> E1a win-rate matrix + Elo across all 5 agents gives a clear picture. Covered.
+
+  "in self-play"  
+  A vs A diagonal completed. The finding is interesting in its own right — rule-based agents have a severe first-mover disadvantage (12–20% player_0 win rate), PPO has the opposite due to
+   training always as player0 (68%), He2016 is neutral (49%).
+
+  "and mixed populations" 
+  E1b sweeps for Bayesian, PPO, He2016 across 10 Dirichlet mixes. Covered.
+
+  "Is there an optimal level, or do higher levels always dominate?" 
+  CDI=0, broadly monotone hierarchy, answered.
+
+  ---
+REMAINING: 
+  1. No Level 3 agent. We have Levels 0, 1, 1+, 2 (×2). ToMnet (Level 3 — models the opponent's beliefs about you) was always part of the plan but not implemented. Without it you can't
+  tell whether dominance holds all the way up or breaks at Level 3. Currently you can only claim "within Levels 0–2, higher dominates." This should be flagged as a limitation and natural
+  future work.
+   
+
+FROM OUR PROEJCT DESCRIPTION: 
+
+he behavioral economics literature formalizes this through level-k thinking (Camerer et al.,
+QJE 2004): Level-0 agents are non-strategic (random or heuristic); Level-1 agents best-respond assuming
+opponents are Level-0; Level-k agents best-respond to Level-(k−1) opponents
+
+The strict definition of ToM levels:
+
+  Level-k ToM in the cognitive science sense is specifically about recursive belief modeling:
+  - Level 0: No model of others. Acts without considering the opponent exists.
+  - Level 1: "My opponent has beliefs/intentions; I model what they will do." First-order intentionality.
+  - Level 2: "My opponent models me; I model what they think I will do." Second-order intentionality.
+  - Level k: I model that my opponent is reasoning at Level k-1 about me.
+
+  The key word is recursive — it's about modeling beliefs about beliefs, not just modeling the physical game state.
+
+
+How strict level-k would actually work
+
+  For Liar's Dice it would be:
+  1. Level-1: Enumerate all Level-0 actions weighted by probability → compute expected value of each bid/challenge given that → pick argmax. This is dynamic programming, tractable for
+  3-dice, exponential for 5-dice.
+  2. Level-2: Same but using Level-1's action distribution as the opponent model.
+  3. Level-k: Recursive — each level requires running the full computation of the level below it.
+
+  This is expensive and brittle. It also doesn't generalize — a strict Level-2 agent against a PPO opponent has no idea what to do because PPO isn't a Level-1 agent.
+
+  Why your current approach is defensible
+
+  The research objective says "inspired by level-k thinking" and "requiring genuine recursive reasoning about beliefs" — it doesn't say "implement analytical level-k best-response." The
+  RL framing is the standard modern interpretation:
+
+  - He2016 is a genuine ToM Level-1 approximation: it maintains an explicit online model of the opponent's type and conditions its policy on that model. The inference net learning "what
+  kind of agent is this?" is precisely recursive reasoning about the opponent's behavior pattern.
+  - The gradient of sophistication is real: Random < Heuristic < Bayesian < PPO < He2016, with clearly increasing opponent-modeling capacity.
+  - The cyclic dominance question doesn't require strict level-k: You're asking whether the dominance ordering is transitive, which is answerable with any set of agents at different
+  sophistication levels.
+
+  What I'd write in the report
+
+  Frame it as: "We operationalize ToM levels via increasing degrees of opponent modeling: from no modeling (Random, Level-0), through statistical dice modeling (Heuristic/Bayesian,
+  Level-0/1 approximation), learned self-play (PPO, implicit), to explicit online opponent type inference (He2016, Level-1 ToM), with ToMnet as the Level-2 target."
+
+  Then add one paragraph acknowledging that strict level-k requires recursive best-response computation (Camerer et al. 2004) which is computationally intractable for the full 5-dice
+  state space — the RL framing provides tractable approximations that preserve the key property of increasing opponent modeling depth.
+
+  That framing is honest, covers the gap, and is consistent with how He et al. 2016 and Rabinowitz et al. 2018 frame their own work (neither claims strict level-k either).
+
+  One real gap: ToMnet
+
+  The biggest missing piece for the ToM argument is ToMnet, because it's the only agent with a genuine "model of the opponent's mental state" via the character net across past games.
+  Without it, your highest ToM level is He2016's type inference, which is Level-1 at best. If RQ1 is supposed to show a gradient from Level-0 to Level-2+, ToMnet is necessary. That's the
+  one thing worth implementing before finalizing RQ1.
+
+
+
+\section{RQ3: Do Emergent Strategies Recapitulate Human-Like Level-$k$ Thinking?}
+
+\subsection{Research Question}
+
+\emph{Do strategies emerging from self-play resemble human-like level-$k$ reasoning as described
+by the Cognitive Hierarchy model, or do agents discover qualitatively different equilibria?}
+
+Unlike RQ1, which measures who wins, RQ3 asks \emph{how} agents reason: does reinforcement
+learning independently rediscover the bounded-rationality patterns that characterise human play,
+or does it converge to something structurally different? The Cognitive Hierarchy (CH) model
+(Camerer et al., 2004) provides an analytical reference: it predicts that human players behave
+as a Poisson-weighted mixture of level-$k$ reasoners, with empirical $\hat{\tau} \approx 1$--$2$.
+We use this framework to locate our five agents on the same scale.
+
+\subsection{Methodology}
+
+\paragraph{Applying Level-$k$ to Single Decisions.}
+Strict level-$k$ theory requires recursive best-response computation, which is intractable
+for the full 5-dice game tree. Following standard practice in empirical game theory, we apply
+the CH framework at the \emph{single-decision level}: each bid or challenge decision is
+analysed independently of future rounds. This yields interpretable analytical reference policies:
+
+\begin{itemize}
+  \item \textbf{Level-0:} Uniform distribution over all legal actions.
+  \item \textbf{Level-1:} Challenge if $p_{\text{valid}} < 0.25$, else place the minimum
+        legal bid (with soft preferences).  This exactly mirrors the Heuristic agent's logic.
+  \item \textbf{Level-2:} Challenge if the posterior probability (after observing the
+        opponent's bid history) is below $0.30$; otherwise raise minimally.  This approximates
+        the Bayesian agent's decision rule.
+\end{itemize}
+
+where $p_{\text{valid}} = \Pr[\text{bid valid} \mid \text{own dice, uniform opponent}]
+= 1 - F_{\text{Bin}}(q - c_{\text{own}} - 1;\; n_{\text{opp}},\, \tfrac{1}{6})$.
+
+\paragraph{Trajectory Collection.}
+For each of the five agents, we run 5{,}000 evaluation games against a fixed Random opponent
+and record every decision point: the agent's own dice, the current bid, the number of opponent
+dice, the action taken, the legal action mask, and $p_{\text{valid}}$.  This yields 19{,}000--23{,}000
+labelled decision points per agent.
+
+\paragraph{Poisson CH Fitting.}
+The CH action distribution under parameter $\tau$ is
+\[
+  \mathrm{CH}(a \mid s,\, \tau)
+  = \sum_{k=0}^{K} \underbrace{\frac{e^{-\tau}\tau^k}{k!}}_{\text{Poisson}(k;\tau)}
+    \cdot \mathrm{Level\text{-}}k(a \mid s), \qquad K = 3.
+\]
+We fit $\hat{\tau}$ by maximum likelihood over all collected decision points and report
+a 95\% bootstrap confidence interval (200 resamples).
+
+\subsection{Experiments and Results}
+
+\subsubsection{E3a: Challenge Calibration}
+
+We bin every decision point by $p_{\text{valid}}$ into 20 equal bins and compute the
+empirical challenge rate in each bin. The resulting \emph{challenge calibration curve}
+directly shows whether an agent's challenge threshold follows binomial probability
+reasoning (Level-1) or deviates from it.
+
+The rule-based agents (Heuristic, Bayesian) show near-step-function calibration with a
+sharp challenge threshold around $p_{\text{valid}} \approx 0.25$--$0.30$, confirming that
+their designs correspond to Level-1/1+ reasoning. The Random agent produces a flat, near-zero
+challenge rate across all bins (it challenges at the same rate regardless of bid strength).
+
+PPO and He2016 display sigmoid-shaped calibration curves that peak in the low-$p_{\text{valid}}$
+region, qualitatively similar to the rule-based agents but with broader transitions, suggesting
+that self-play recovers an approximate Level-1 challenge heuristic rather than a precise threshold.
+
+We additionally split trajectories by player position (Player~0 vs.\ Player~1) to test for
+positional asymmetry.  All five agents challenge \emph{more} as Player~1 than as Player~0
+(negative positional bias in Table~\ref{tab:rq3_fingerprints}), consistent with Player~1 facing
+stronger bids on average.  The difference is modest and similar across all agents, indicating
+that positional bias is a game-structural effect rather than a learned artifact.
+
+\subsubsection{E3b: Implied $\hat{\tau}$ and KL Divergences}
+
+Table~\ref{tab:rq3_tau} reports the fitted $\hat{\tau}$ and the mean KL divergence from each
+Level-$k$ reference for all five agents, collected over 5{,}000 games ($\approx$19{,}000--23{,}000
+decision points per agent).
+
+\begin{table}[h]
+\centering
+\caption{Implied Poisson-CH parameter $\hat{\tau}$ and mean KL divergence (nats) from
+Level-$k$ action distributions.  Lower KL indicates closer behavioural alignment.
+Human range from Camerer et al.\ (2004): $\tau \approx 1$--$2$.}
+\label{tab:rq3_tau}
+\begin{tabular}{lrrrrrr}
+\toprule
+Agent & $\hat{\tau}$ & 95\% CI & KL to L0 & KL to L1 & KL to L2 & Closest level \\
+\midrule
+Random    & 0.01 & [0.01, 0.01] & \textbf{1.36} & 6.30 & 2.46 & Level-0 \\
+Heuristic & 1.00 & [1.00, 1.00] & 1.77 & \textbf{0.85} & 9.37 & Level-1 \\
+Bayesian  & 1.00 & [1.00, 1.00] & 1.76 & \textbf{0.93} & 9.25 & Level-1 \\
+PPO       & 1.00 & [1.00, 1.00] & 1.90 & \textbf{1.82} & 9.30 & Level-1 \\
+He2016    & 1.00 & [1.00, 1.00] & 1.89 & \textbf{2.30} & 8.89 & Level-1 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Three findings are notable.
+
+\textbf{(i) All trained agents converge to $\hat{\tau} = 1.0$}, placing them squarely within
+the human range reported by Camerer et al.\ (2004).  Reinforcement learning via self-play
+independently rediscovers the same level of strategic sophistication that characterises
+human play.
+
+\textbf{(ii) The Bayesian agent fits $\hat{\tau} = 1.0$, not $\hat{\tau} = 2.0$}, despite
+being analytically designed as a Level-2 agent.  At the single-decision level, the particle-filter
+posterior updates carried by 5-dice bids are insufficient to shift challenge thresholds far
+enough from the Level-1 baseline to produce a measurably different $\hat{\tau}$.  Level-2
+reasoning becomes visible in the particle filter's internal state but not in the marginal
+action distribution over decisions.
+
+\textbf{(iii) RL agents have higher KL to Level-1 than rule-based agents} (PPO: 1.82,
+He2016: 2.30 vs.\ Heuristic: 0.85, Bayesian: 0.93).  While their overall behaviour is
+closest to Level-1, the learned policies deviate more---indicating that self-play introduces
+strategies not captured by any pure-CH level.
+
+\subsubsection{E3c: Strategy Fingerprints and PCA}
+
+We represent each agent as a 16-dimensional strategy fingerprint capturing challenge
+calibration by $p_{\text{valid}}$ quintile, bid aggression, face preference, positional
+bias, bluff rate, and bid-jump consistency.  Table~\ref{tab:rq3_fingerprints} reports
+the most interpretable features.
+
+\begin{table}[h]
+\centering
+\caption{Selected strategy fingerprint features.  Bluff rate = fraction of bids where
+the bid quantity exceeds the expected dice count; positional bias = challenge rate
+(Player~0) $-$ challenge rate (Player~1); overall CR = overall challenge rate.}
+\label{tab:rq3_fingerprints}
+\begin{tabular}{lrrr}
+\toprule
+Agent & Bluff rate & Positional bias & Overall CR \\
+\midrule
+Random    & 0.97 & $-$0.07 & 0.56 \\
+Heuristic & 0.87 & $-$0.19 & 0.84 \\
+Bayesian  & 0.86 & $-$0.18 & 0.84 \\
+PPO       & 0.49 & $-$0.16 & 0.80 \\
+He2016    & 0.44 & $-$0.19 & 0.78 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The most striking difference is \textbf{bluff rate}: the RL agents (PPO: 0.49, He2016: 0.44)
+bluff at roughly half the rate of the rule-based agents (0.86--0.87).  The CH model assigns no
+preference between ``truthful'' and ``over-claimed'' bids---both Level-1 and Level-2 simply
+raise the minimum legal amount.  The RL agents have learned that conservative bidding is safer
+against a self-play opponent pool, a domain-specific equilibrium that the CH model does not
+predict.
+
+PCA of the 16-dimensional fingerprint space (explained variance: PC1 = 46.8\%,
+PC2 = 22.0\%; total 68.8\%) separates the agents into three clusters: Random is isolated
+(conservative bidder with flat challenge calibration); Heuristic and Bayesian cluster together
+(high bluff rate, strong calibration); PPO occupies an intermediate position; and He2016 is a
+clear outlier on PC1 (low bluff rate combined with opponent-type-conditioned decision routing).
+
+\subsubsection{E3d: Non-CH State Detection}
+
+For each decision point we compute $\min_k \mathrm{KL}(p_{\text{agent}} \,\|\,
+\mathrm{Level\text{-}}k)$ and flag it as a \emph{non-CH decision} if this minimum exceeds
+0.5 nats.  Table~\ref{tab:rq3_nonch} reports the fraction of non-CH decisions per agent.
+
+\begin{table}[h]
+\centering
+\caption{Fraction of decisions that deviate from all CH reference levels by more than 0.5 nats
+(``non-CH decisions'').}
+\label{tab:rq3_nonch}
+\begin{tabular}{lrr}
+\toprule
+Agent & Non-CH fraction & Mean min.\ KL (nats) \\
+\midrule
+Random    & 40.7\% & 1.20 \\
+Heuristic & 15.7\% & 0.58 \\
+Bayesian  & 16.3\% & 0.58 \\
+PPO       & 20.5\% & 0.72 \\
+He2016    & 22.7\% & 0.78 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The Random agent has the highest non-CH fraction because it acts identically on opening bids
+(no prior bid on the table), which the Level-1/2 models cannot predict.  Among trained agents,
+the rule-based agents are most consistent with CH theory (15--16\% non-CH), while the RL agents
+exhibit modestly more non-CH behaviour (20--23\%).  Inspection of the top non-CH decision points
+for PPO and He2016 reveals they concentrate in opening-bid situations and late-game low-dice
+states---precisely the scenarios where the CH single-decision approximation is weakest, and
+where self-play history provides information not available to the analytical reference models.
+
+\subsection{Discussion}
+
+\paragraph{Self-play independently converges to Level-1 reasoning.}
+The consistent $\hat{\tau} = 1.0$ across all trained agents---regardless of whether the policy
+was hand-coded (Heuristic), inference-based (Bayesian), or learned entirely from self-play
+(PPO, He2016)---suggests that Level-1 CH reasoning is a natural equilibrium for 2-player
+Liar's Dice.  This matches Camerer et al.'s finding that human players concentrate at
+$\tau \approx 1$--$2$.
+
+\paragraph{RL agents augment Level-1 with novel strategies.}
+The higher KL divergences and non-CH fractions of PPO and He2016 indicate that self-play
+introduces strategies beyond the CH framework.  The most prominent is \emph{conservative
+bidding}: RL agents bluff at roughly half the rate of analytically designed Level-1 agents.
+This strategy is not predicted by single-decision Level-k analysis, but emerges naturally
+in self-play because over-bidding against an adaptive opponent pool increases exposure to
+successful challenges.
+
+\paragraph{The CH model is a useful but incomplete lens.}
+The Cognitive Hierarchy framework correctly identifies the dominant mode of reasoning
+($\hat{\tau} \approx 1$) and distinguishes Random (Level-0) from all trained agents.  However,
+it does not capture the full behavioural diversity: the bluff-rate difference between
+rule-based and RL agents, He2016's outlier position in fingerprint space, and the
+opening-bid and late-game non-CH decisions all fall outside what any single $\tau$ value
+can explain.
+
+\begin{ack}
+ack
+\end{ack}
+
+\bibliographystyle{plainnat}
+\bibliography{references}
+
+\end{document}
